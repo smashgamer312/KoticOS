@@ -1,47 +1,38 @@
-; kernel.asm - KoticOS стартовый код
 BITS 32
-ORG 0x100000
 
-; -----------------------
-; Таблица команд
-; -----------------------
 section .data
 prompt db 'KoticOS> ',0
 help_text db '/help - список команд',10,'/echo <text> - вывод текста',10,'/cls - очистка экрана',10,'/explorer - GUI',10,0
+cls_cmd db '/cls',0
+explorer_cmd db '/explorer',0
+echo_cmd db '/echo ',0
 
-; -----------------------
-; Стек
-; -----------------------
 section .bss
 stack resb 4096
+input_buffer resb 128
+cursor_x resb 1
+cursor_y resb 1
 
-; -----------------------
-; Код ядра
-; -----------------------
 section .text
 global _start
 _start:
 
     call init_screen
+
 main_loop:
     call print_prompt
     call read_input
     call handle_command
     jmp main_loop
 
-; -----------------------
-; Инициализация экрана (очистка)
-; -----------------------
 init_screen:
-    mov ax,0x0F00      ; черный фон, белый текст
+    mov ah,0x0
+    mov al,0x03
     int 0x10
     ret
 
-; -----------------------
-; Вывод prompt
-; -----------------------
 print_prompt:
-    mov edx, prompt
+    mov esi, prompt
 .next_char:
     lodsb
     cmp al,0
@@ -52,51 +43,41 @@ print_prompt:
 .done:
     ret
 
-; -----------------------
-; Чтение ввода
-; -----------------------
 read_input:
-    mov ecx,input_buffer
+    mov edi, input_buffer
 .read_loop:
     mov ah,0
-    int 0x16           ; BIOS: считываем символ
+    int 0x16
     cmp al,13
     je .done
     stosb
     jmp .read_loop
 .done:
-    mov byte [ecx],0
+    mov byte [edi],0
     ret
 
-section .bss
-input_buffer resb 128
-
-; -----------------------
-; Обработка команд
-; -----------------------
 handle_command:
     mov esi, input_buffer
-    ; команда /help
     mov edi, help_text
     call strcmp
+    cmp eax,0
     je .help_cmd
-    ; команда /cls
     mov edi, cls_cmd
     call strcmp
+    cmp eax,0
     je .cls_cmd
-    ; команда /explorer
     mov edi, explorer_cmd
     call strcmp
+    cmp eax,0
     je .explorer_cmd
-    ; команда /echo
     mov edi, echo_cmd
     call startswith
+    cmp eax,0
     je .echo_cmd
     ret
 
 .help_cmd:
-    ; вывести help_text
-    mov edx, help_text
+    mov esi, help_text
 .print_help:
     lodsb
     cmp al,0
@@ -116,27 +97,68 @@ handle_command:
     ret
 
 .echo_cmd:
-    ; выводим текст после "/echo "
+    mov esi, input_buffer
+    add esi, 6
+.print_echo:
+    lodsb
+    cmp al,0
+    je .done_echo
+    mov ah,0x0E
+    int 0x10
+    jmp .print_echo
+.done_echo:
     ret
 
-section .data
-cls_cmd db '/cls',0
-explorer_cmd db '/explorer',0
-echo_cmd db '/echo ',0
-
-; -----------------------
-; Стартовое GUI-демо
-; -----------------------
 gui_demo:
-    ; рисуем простое окно (рамка)
+    mov cx, 50
+    mov dh, 2
+    mov dl, 10
+.draw_top:
+    mov al,'#'
+    call print_char_at
+    inc dl
+    loop .draw_top
     ret
 
-; -----------------------
-; Вспомогательные функции (strcmp, startswith)
-; -----------------------
+print_char_at:
+    mov ah,0x0E
+    int 0x10
+    ret
+
 strcmp:
-    ; простой пример сравнения строк
+    push esi
+.next_cmp:
+    lodsb
+    cmp al, [edi]
+    jne .not_equal
+    cmp al,0
+    je .equal
+    inc edi
+    jmp .next_cmp
+.equal:
+    mov eax,0
+    pop esi
+    ret
+.not_equal:
+    mov eax,1
+    pop esi
     ret
 
 startswith:
+    push esi
+.next_sw:
+    lodsb
+    cmp al, [edi]
+    jne .sw_fail
+    cmp al,0
+    je .sw_ok
+    inc edi
+    jmp .next_sw
+.sw_ok:
+    mov eax,0
+    pop esi
+    ret
+.sw_fail:
+    mov eax,1
+    pop esi
     ret
