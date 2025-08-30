@@ -1,0 +1,25 @@
+name: Build KoticOS ISO
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm xorriso grub-pc-bin qemu-system-x86 binutils gcc
+          wget https://github.com/lordmilko/i686-elf-tools/releases/download/10.2.0/i686-elf-tools-linux.tar.xz -O tools.tar.xz
+          sudo tar -xf tools.tar.xz -C /opt
+          echo "/opt/i686-elf-tools-linux/bin" >> $GITHUB_PATH
+      - name: Build
+        run: make
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: KoticOS.iso
+          path: KoticOS.iso
