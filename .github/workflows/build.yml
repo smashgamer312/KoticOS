@@ -9,16 +9,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install deps
+
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y nasm xorriso grub-pc-bin qemu-system-x86 binutils gcc
-          wget https://github.com/lordmilko/i686-elf-tools/releases/download/10.2.0/i686-elf-tools-linux.tar.xz -O tools.tar.xz
-          sudo tar -xf tools.tar.xz -C /opt
-          echo "/opt/i686-elf-tools-linux/bin" >> $GITHUB_PATH
-      - name: Build
+          sudo apt-get install -y nasm xorriso grub-pc-bin qemu-system-i386 binutils gcc-multilib make
+
+      - name: Build KoticOS ISO
         run: make
-      - name: Upload ISO
+
+      - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
         with:
           name: KoticOS.iso
